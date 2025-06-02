@@ -19,7 +19,7 @@ var db = new sqlite3.Database('./dados.db', (err) => {
 db.run(`CREATE TABLE IF NOT EXISTS alarmes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome_local TEXT NOT NULL,
-    descricao TEXT,
+    status BOOLEAN,
     usuarios_ids TEXT,
     pontos_monitorados TEXT
 )`, (err) => {
@@ -30,7 +30,7 @@ db.run(`CREATE TABLE IF NOT EXISTS alarmes (
 });
 
 app.post('/alarmes', (req, res) => {
-    const { nome_local, descricao, usuarios_ids, pontos_monitorados } = req.body || {};
+    const { nome_local, status, usuarios_ids, pontos_monitorados } = req.body || {};
 
     if (!nome_local) {
         return res.status(400).send("O campo 'nome_local' é obrigatório.");
@@ -40,11 +40,11 @@ app.post('/alarmes', (req, res) => {
     const usuariosIdsStr = usuarios_ids || '';
     const pontosStr = pontos_monitorados || '';
 
-    db.run(`INSERT INTO alarmes (nome_local, descricao, usuarios_ids, pontos_monitorados)
+    db.run(`INSERT INTO alarmes (nome_local, status, usuarios_ids, pontos_monitorados)
             VALUES (?, ?, ?, ?)`,
         [
             nome_local,
-            descricao || '',
+            status,
             usuariosIdsStr,
             pontosStr
         ],
@@ -86,17 +86,17 @@ app.get('/alarmes/:id', (req, res) => {
 
 // PATCH - Atualizar alarme por ID
 app.patch('/alarmes/:id', (req, res) => {
-    const { nome_local, descricao, usuarios_ids, pontos_monitorados } = req.body;
+    const { nome_local, status, usuarios_ids, pontos_monitorados } = req.body;
 
     db.run(`UPDATE alarmes SET
             nome_local = COALESCE(?, nome_local),
-            descricao = COALESCE(?, descricao),
+            status = COALESCE(?, status),
             usuarios_ids = COALESCE(?, usuarios_ids),
             pontos_monitorados = COALESCE(?, pontos_monitorados)
             WHERE id = ?`,
         [
             nome_local || null,
-            descricao || null,
+            status || null,
             usuarios_ids ? usuarios_ids.join(',') : null,
             pontos_monitorados ? pontos_monitorados.join(',') : null,
             req.params.id
