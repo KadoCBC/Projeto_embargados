@@ -29,9 +29,9 @@ app.listen(porta, () => {
 });
 
 
-async function buscarAlarme(id) {
+async function verificaPermissao(id_alarme, id_usuario) {
     try{
-        const response = await axios.getAdapter(`http://localhost:8090/alarmes/${id}`)
+        const response = await axios.getAdapter(`localhost:8090/alarmes?id_alarme=${id_alarme}&id_usuario=${id_usuario}`)
         return response
     }
     catch (err){
