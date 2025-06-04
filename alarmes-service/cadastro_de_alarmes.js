@@ -125,6 +125,26 @@ app.delete('/alarmes/:id', (req, res) => {
     });
 });
 
+// Permissão de acesso
+app.get('/alarmes/permissao', (req, res) => {
+    const {id_usuario, id_alarme} = req.params
+    db.get('SELECT * FROM alarmes WHERE id = ?', [id_alarme], (err, result) => {
+        if (err) {
+            console.log(err);
+            res.status(500).send('Erro ao buscar alarme.');
+        } else if (!result) {
+            res.status(404).send('Alarme não encontrado.');
+        } else {
+            let lista = result.usuarios_ids.split(',').map(id => id.trim()); // gambiarra
+            
+            const permitido = lista.includes(id_usuario)
+
+            return res.json({permitido})
+        }
+    });
+})
+
+
 // Inicia o servidor
 const porta = 8090;
 app.listen(porta, () => {
