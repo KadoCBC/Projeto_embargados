@@ -19,7 +19,7 @@ var db = new sqlite3.Database('./dados.db', (err) => {
 db.run(`CREATE TABLE IF NOT EXISTS alarmes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome_local TEXT NOT NULL,
-    status BOOLEAN,
+    status INTEGER,
     usuarios_ids TEXT,
     pontos_monitorados TEXT
 )`, (err) => {
@@ -96,7 +96,7 @@ app.patch('/alarmes/:id', (req, res) => {
             WHERE id = ?`,
         [
             nome_local || null,
-            status || null,
+            status === undefined ? null : (status ? 1 : 0), //converte booleano para 1 ou 0
             usuarios_ids ? usuarios_ids.join(',') : null,
             pontos_monitorados ? pontos_monitorados.join(',') : null,
             req.params.id
@@ -138,9 +138,10 @@ app.get('/permissao', (req, res) => {
             const lista = result.usuarios_ids.split(',').map(id => id.trim()); // gambiarra
             
             const permitido = lista.includes(id_usuario.trim());
+            const status = result.status; // Pegando o status da tupla do banco
 
-            return res.json({permitido})
-        }
+            return res.json({permitido,status})
+        };
     });
 });
 

@@ -9,21 +9,27 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));
 
 // Aciona Alarme
-app.post('/Acionar', async (req, res) => {
+app.post('/acionamento', async (req, res) => {
     const { id_alarme, id_usuario, origem } = req.body; 
-    console.log(id_alarme)
 
     try {
-        const permissao = await verificaPermissao(id_alarme, id_usuario);
-        console.log(permissao);
+        let { permitido, status } = await verificaPermissao(id_alarme, id_usuario);
+        console.log(status);
 
-        if (!permissao || !permissao.permitido) {
+        if (!permitido) {
             return res.status(403).json({ mensagem: 'Usuário sem permissão para acionar o alarme.' });
+        };
+        
+        if (status == 0) {
+            status = 1
+            await acionamento(id_alarme, status)
+            res.status(200).json({ mensagem: 'Alarme acionado com sucesso!' });
         }
-
-        // Simulação de acionamento do alarme
-        console.log(`Alarme ${id_alarme} acionado por ${id_usuario} via ${origem}`);
-        res.status(200).json({ mensagem: 'Alarme acionado com sucesso!' });
+        else {
+            status = 0
+            await acionamento(id_alarme, status)
+            res.status(200).json({ mensagem: 'Alarme desligado com sucesso!' });
+        };
 
     } catch (error) {
         console.error('Erro ao acionar alarme:', error.message);
@@ -48,9 +54,21 @@ app.listen(porta, () => {
 async function verificaPermissao(id_alarme, id_usuario) {
     try {
         const response = await axios.get(`http://localhost:8090/permissao?id_alarme=${id_alarme}&id_usuario=${id_usuario}`);
-        return response.data; // normalmente você quer acessar os dados aqui
+        return response.data; //acessar os dados aqui
     } catch (err) {
         console.log('Erro ao buscar alarme:', err.message);
+        return null;
+    }
+}
+
+async function acionamento(id_alarme, novoStatus) {
+    try {
+        const response = await axios.patch(`http://localhost:8090/alarmes/${id_alarme}`,{
+            status: novoStatus // corpo da requisição
+        });
+        console.log('Resposta:', response.data);
+    } catch (err) {
+        console.log('Erro ao atualizar stautus:', err.message);
         return null;
     }
 }
