@@ -39,11 +39,6 @@ app.post('/acionamento', async (req, res) => {
 
 
 
-
-
-
-
-
 // Inicia o Servidor na porta 8080
 let porta = 8100;
 app.listen(porta, () => {
