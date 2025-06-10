@@ -29,7 +29,7 @@ db.run(`CREATE TABLE IF NOT EXISTS usuarios
       });
 
 //POST
-app.post('/Cadastro-usuario', (req, res, next) => {
+app.post('/usuarios', (req, res, next) => {
     db.run(`INSERT INTO usuarios(id, nome_usuario, celular) VALUES(?,?,?)`, 
          [req.body.id, req.body.nome_usuario, req.body.celular], (err) => {
         if (err) {

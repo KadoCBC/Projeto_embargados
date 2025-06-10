@@ -39,7 +39,7 @@ app.post('/acionamento', async (req, res) => {
 
 
 
-// Inicia o Servidor na porta 8080
+// Inicia o Servidor
 let porta = 8100;
 app.listen(porta, () => {
  console.log('Servidor em execução na porta: ' + porta);

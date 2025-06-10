@@ -29,7 +29,7 @@ db.run(`CREATE TABLE IF NOT EXISTS logs (
     }
 });
 
-app.post('/registro', (req, res) => {
+app.post('/registros', (req, res) => {
     const { evento, id_alarme, local } = req.body || {};
     const data = dataAtualFormatada();
 
@@ -64,7 +64,7 @@ app.get('/registros', (req, res) => {
 });
 
 //GET USUARIO POR ID
-app.get('/registro/:id', (req, res) => {
+app.get('/registros/:id', (req, res) => {
     db.get(`SELECT * FROM logs WHERE id = ?`, req.params.id, (err, result) => {
         if (err) {
             console.log(err);
