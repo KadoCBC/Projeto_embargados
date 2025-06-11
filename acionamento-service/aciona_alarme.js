@@ -81,7 +81,7 @@ async function acionamento(id_alarme, novoStatus) {
 
 async function registraLog(id_alarmeLog, eventoLog, localLog) {
     try {
-        const response = await axios.get(`http://localhost:8120/registros`,{
+        const response = await axios.post(`http://localhost:8120/registros`,{
             id_alarme: id_alarmeLog, // corpo da requisição
             evento: eventoLog,
             local: localLog

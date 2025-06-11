@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3');
+const axios = require('axios');
 
 const app = express();
 app.use(bodyParser.json());
@@ -51,7 +52,7 @@ app.post('/registros', async (req, res) => {
         
         // Notifica todos os usuários com base no id_usuario
         await Promise.all(
-            usuarios.map(u => notifica_usuario(u.id_usuario))
+            usuarios.map(u => notifica_usuario(u.id_usuario, evento))
         );
 
         res.status(200).send('Log registrado com sucesso!');
@@ -110,9 +111,11 @@ function dataAtualFormatada() {
     return `${dia}-${mes}-${ano} ${hora}:${minuto}:${segundo}`;
 }
 
-async function notifica_usuario(id_usuario) {
+async function notifica_usuario(id_usuario,evento) {
     try {
-        const response = await axios.get(`http://localhost:8130/notificar/${id_usuario}`)
+        const response = await axios.post(`http://localhost:8130/notificar/${id_usuario}`, {
+            evento: evento
+        });
         return response.data
     } catch (err) {
         console.log('Erro ao notificar:', err.message);
@@ -122,7 +125,7 @@ async function notifica_usuario(id_usuario) {
 
 async function usuariosVinculados(id_alarme) {
     try {
-        const response = await axios.get(`http://localhost:8090/alarmes/permissao/${id_alarme}`)
+        const response = await axios.get(`http://localhost:8090/alarmes/permissaos/${id_alarme}`)
         return response.data
     } catch (err) {
         console.log('Erro ao procurar permissoes', err.message);

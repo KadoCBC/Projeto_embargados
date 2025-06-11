@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3');
+const axios = require('axios');
 
 const app = express();
 app.use(bodyParser.json());
@@ -33,14 +34,12 @@ db.run(`
     CREATE TABLE IF NOT EXISTS permissoes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         id_alarme INTEGER NOT NULL,
-        id_usuario INTEGER NOT NULL,
+        id_usuario INTEGER NOT NULL
     )
 `, (err) => {
     if (err) {
         console.log('ERRO ao criar tabela permissoes.');
         throw err;
-    } else {
-        console.log('Tabela permissoes criada com sucesso!');
     }
 });
 
@@ -56,7 +55,7 @@ app.post('/alarmes', (req, res) => {
     const pontosStr = pontos_monitorados || '';
 
     db.run(`INSERT INTO alarmes (nome_local, status, pontos_monitorados)
-            VALUES (?, ?, ?, ?)`,
+            VALUES (?, ?, ?)`,
         [
             nome_local,
             status,
@@ -161,29 +160,26 @@ app.post('/alarmes/permissao/:id', async (req,res) => {
     if (!data.id){
         return res.status(400).send("Usuario não existe")
     }
-
-    db.run(`INSERT INTO permissoes (id_alarme, id_usuario)`
-        [
-            id_alarme,
-            id_usuario
-        ],
+    db.run(
+        `INSERT INTO permissoes (id_alarme, id_usuario) VALUES (?, ?)`,
+        [id_alarme, id_usuario],
         function (err) {
             if (err) {
-                return res.status(500).send('Erro ao vincular Usuario ao alarme')
-            };
-            res.status(200).send(`Usuario: ${id_usuario} vinculado ao alarme: ${id_alarme}`)
+                return res.status(500).send('Erro ao vincular Usuário ao alarme');
+            }
+            res.status(200).send(`Usuário: ${id_usuario} vinculado ao alarme: ${id_alarme}`);
         }
     );
 });
 
 //GET permissoes por id_alarme
-app.get('/alarmes/permissao/:id', (req, res) => {
+app.get('/alarmes/permissaos/:id', (req, res) => {
     const id_alarme = req.params.id;
 
     db.all('SELECT id_usuario FROM permissoes WHERE id_alarme = ?', [id_alarme], (err, results) => {
         if (err) {
             res.status(500).send('Erro ao buscar as permissoes do alarme')
-        } else if (!result) {
+        } else if (!results) {
             res.status(404).send('Alarme não encontrado.');
         } else {
             res.status(200).json(results);

@@ -16,8 +16,6 @@ function selectProxyHost(req) {
         return 'http://localhost:8110/';
     else if (req.path.startsWith('/registros'))
         return 'http://localhost:8120/';
-    else if (req.path.startsWith('/notificar'))
-        return 'http://localhost:8130/';
     else return null;
 }
 
