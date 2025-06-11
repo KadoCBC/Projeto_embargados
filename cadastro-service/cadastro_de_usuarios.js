@@ -20,8 +20,9 @@ var db = new sqlite3.Database('./dados.db', (err) => {
     });
 // Cria a tabela cadastro, caso ela não exista
 db.run(`CREATE TABLE IF NOT EXISTS usuarios 
-        (nome_usuario TEXT NOT NULL, celular TEXT NOT NULL, 
-         id INTEGER PRIMARY KEY NOT NULL UNIQUE)`, 
+        (nome_usuario TEXT NOT NULL,
+            celular TEXT NOT NULL, 
+            id INTEGER PRIMARY KEY AUTOINCREMENT)`, 
         [], (err) => {
            if (err) {
               console.log('ERRO: não foi possível criar tabela.');
@@ -31,8 +32,8 @@ db.run(`CREATE TABLE IF NOT EXISTS usuarios
 
 //POST
 app.post('/usuarios', (req, res, next) => {
-    db.run(`INSERT INTO usuarios(id, nome_usuario, celular) VALUES(?,?,?)`, 
-         [req.body.id, req.body.nome_usuario, req.body.celular], (err) => {
+    db.run(`INSERT INTO usuarios(nome_usuario, celular) VALUES(?,?)`, 
+         [req.body.nome_usuario, req.body.celular], (err) => {
         if (err) {
             console.log("Error: " + err);
             res.status(500).send('Erro ao cadastrar cliente.');

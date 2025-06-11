@@ -147,29 +147,36 @@ app.delete('/alarmes/:id', (req, res) => {
 });
 
 //VINCULA UM USUARIO A UM ALARME
-app.post('/alarmes/permissao/:id', async (req,res) => {
+app.post('/alarmes/permissao/:id', async (req, res) => {
     const id_alarme = req.params.id;
     const id_usuario = req.body.id_usuario;
 
     if (!id_usuario) {
-        return res.status(400).send("id_usuario é obrigatório")
-    };
-    
-    const data = await procura_usuario(id_usuario);
-
-    if (!data.id){
-        return res.status(400).send("Usuario não existe")
+        return res.status(400).send("id_usuario é obrigatório");
     }
-    db.run(
-        `INSERT INTO permissoes (id_alarme, id_usuario) VALUES (?, ?)`,
-        [id_alarme, id_usuario],
-        function (err) {
-            if (err) {
-                return res.status(500).send('Erro ao vincular Usuário ao alarme');
-            }
-            res.status(200).send(`Usuário: ${id_usuario} vinculado ao alarme: ${id_alarme}`);
+
+    try {
+        const data = await procura_usuario(id_usuario);
+
+        // Verifica se o usuário foi encontrado
+        if (!data || !data.id) {
+            return res.status(404).send("Usuário não existe");
         }
-    );
+
+        db.run(
+            `INSERT INTO permissoes (id_alarme, id_usuario) VALUES (?, ?)`,
+            [id_alarme, id_usuario],
+            function (err) {
+                if (err) {
+                    return res.status(500).send('Erro ao vincular Usuário ao alarme');
+                }
+                res.status(200).send(`Usuário: ${id_usuario} vinculado ao alarme: ${id_alarme}`);
+            }
+        );
+    } catch (error) {
+        console.error("Erro ao procurar usuário:", error);
+        res.status(500).send("Erro interno ao procurar usuário");
+    }
 });
 
 //GET permissoes por id_alarme
@@ -189,34 +196,48 @@ app.get('/alarmes/permissaos/:id', (req, res) => {
 
 // Permissão de acesso
 app.get('/permissao', (req, res) => {
-    const { id_usuario, id_alarme } = req.query;
-    let status_alarme = null
+    try {
+        const { id_usuario, id_alarme } = req.query;
 
-    if (!id_alarme || !id_usuario) {
-        return res.status(400).json({ mensagem: 'Parâmetros id_alarme e id_usuario são obrigatórios.' });
+        if (!id_alarme || !id_usuario) {
+            return res.status(400).json({ mensagem: 'Parâmetros id_alarme e id_usuario são obrigatórios.' });
+        }
+
+        // Primeiro: buscar o alarme
+        db.get('SELECT * FROM alarmes WHERE id = ?', [id_alarme], (err, alarme) => {
+            if (err) {
+                console.error('Erro ao buscar alarme:', err.message);
+                return res.status(500).json({ mensagem: 'Erro ao buscar alarme.' });
+            }
+
+            if (!alarme) {
+                return res.status(404).json({ mensagem: 'Alarme não encontrado.' });
+            }
+
+            // Segundo: buscar a permissão (somente se o alarme existir)
+            db.get('SELECT * FROM permissoes WHERE id_alarme = ? AND id_usuario = ?', [id_alarme, id_usuario], (err, permissao) => {
+                if (err) {
+                    console.error('Erro ao buscar permissão:', err.message);
+                    return res.status(500).json({ mensagem: 'Erro interno ao verificar permissão.' });
+                }
+
+                if (permissao) {
+                    return res.status(200).json({
+                        permitido: true,
+                        status: alarme.status,
+                        permissao: permissao
+                    });
+                } else {
+                    return res.status(200).json({ permitido: false });
+                }
+            });
+        });
+
+    } catch (error) {
+        // Só vai capturar erros síncronos (ex: variáveis inválidas, erro de sintaxe)
+        console.error('Erro inesperado:', error.message);
+        res.status(500).json({ mensagem: 'Erro inesperado no servidor.' });
     }
-
-    db.get('SELECT * FROM alarmes WHERE id = ?', [id_alarme], (err, result) => {
-        if (err) {
-            res.status(500).send('Erro ao buscar alarme.')
-        } else if (!result) {
-            res.status(404).send('Alarme não encontrado.');
-        } else {
-            status_alarme = result.status; // Pegando o status da tupla do banco
-        };
-    });
-
-    db.get('SELECT * FROM permissoes WHERE id_alarme = ? AND id_usuario = ?', [id_alarme, id_usuario], (err, result) => {
-        if (err) {
-            console.log('Erro ao buscar permissão:', err.message);
-            return res.status(500).json({ mensagem: 'Erro interno ao verificar permissão.' });
-        }
-        if (result) {
-            return res.status(200).json({ permitido: true, status: status_alarme, permissao: result });
-        } else {
-            return res.status(200).json({ permitido: false });
-        }
-    });
 });
 
 
