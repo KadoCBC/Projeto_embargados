@@ -190,6 +190,7 @@ app.get('/alarmes/permissaos/:id', (req, res) => {
 // Permissão de acesso
 app.get('/permissao', (req, res) => {
     const { id_usuario, id_alarme } = req.query;
+    let status_alarme = null
 
     if (!id_alarme || !id_usuario) {
         return res.status(400).json({ mensagem: 'Parâmetros id_alarme e id_usuario são obrigatórios.' });
@@ -201,7 +202,7 @@ app.get('/permissao', (req, res) => {
         } else if (!result) {
             res.status(404).send('Alarme não encontrado.');
         } else {
-            var status_alarme = result.status; // Pegando o status da tupla do banco
+            status_alarme = result.status; // Pegando o status da tupla do banco
         };
     });
 
@@ -210,8 +211,8 @@ app.get('/permissao', (req, res) => {
             console.log('Erro ao buscar permissão:', err.message);
             return res.status(500).json({ mensagem: 'Erro interno ao verificar permissão.' });
         }
-        if (row) {
-            return res.status(200).json({ permitido: true, status: status_alarme, permissao: row });
+        if (result) {
+            return res.status(200).json({ permitido: true, status: status_alarme, permissao: result });
         } else {
             return res.status(200).json({ permitido: false });
         }
