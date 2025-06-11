@@ -15,6 +15,8 @@ app.post('/disparo/:id', async (req, res) => {
     
     try {
         let data = await procura_alarme(id_alarme)
+        evento = `Disparo de alarme`
+        const log = await registraLog(data.id, evento, data.nome_local)
         res.status(200).json({mensagem: `Alarme ${data.id} em ${data.nome_local} detectou movimento, ponto disparado: ${ponto_disparado} `})
 
     } catch (error) {
@@ -36,6 +38,20 @@ async function procura_alarme(id_alarme) {
         return response.data
     } catch (err) {
         console.log('Erro ao encontrar alarme:', err.message);
+        return null;
+    };
+};
+
+async function registraLog(id_alarmeLog, eventoLog, localLog) {
+    try {
+        const response = await axios.get(`http://localhost:8120/registros`,{
+            id_alarme: id_alarmeLog, // corpo da requisição
+            evento: eventoLog,
+            local: localLog
+        });
+        return
+    } catch (err) {
+        console.log('Erro ao registrar Log:', err.message);
         return null;
     };
 };

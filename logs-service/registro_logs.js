@@ -29,26 +29,37 @@ db.run(`CREATE TABLE IF NOT EXISTS logs (
     }
 });
 
-app.post('/registros', (req, res) => {
+app.post('/registros', async (req, res) => {
     const { evento, id_alarme, local } = req.body || {};
     const data = dataAtualFormatada();
 
-    db.run(`INSERT INTO logs (evento, data, id_alarme, local)
-            VALUES (?, ?, ?, ?)`,
-        [
-            evento,
-            data,
-            id_alarme,
-            local
-        ],
-        function (err) {
-            if (err) {
-                console.log(err);
-                return res.status(500).send('Erro ao registrar log.');
-            }
-            res.status(200).send('log registrado com sucesso!');
-        }
-    );
+    try {
+        // Envolve db.run em uma Promise para usar com await
+        await new Promise((resolve, reject) => {
+            db.run(
+                `INSERT INTO logs (evento, data, id_alarme, local) VALUES (?, ?, ?, ?)`,
+                [evento, data, id_alarme, local],
+                function (err) {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+
+        // Só executa depois do insert ter sucesso
+        const usuarios = await usuariosVinculados(id_alarme);
+        
+        // Notifica todos os usuários com base no id_usuario
+        await Promise.all(
+            usuarios.map(u => notifica_usuario(u.id_usuario))
+        );
+
+        res.status(200).send('Log registrado com sucesso!');
+
+    } catch (err) {
+        console.error('Erro ao registrar log:', err);
+        res.status(500).send('Erro ao registrar log.');
+    }
 });
 
 //GET ALL
@@ -63,7 +74,7 @@ app.get('/registros', (req, res) => {
     });
 });
 
-//GET USUARIO POR ID
+//GET registro POR ID
 app.get('/registros/:id', (req, res) => {
     db.get(`SELECT * FROM logs WHERE id = ?`, req.params.id, (err, result) => {
         if (err) {
@@ -98,3 +109,23 @@ function dataAtualFormatada() {
 
     return `${dia}-${mes}-${ano} ${hora}:${minuto}:${segundo}`;
 }
+
+async function notifica_usuario(id_usuario) {
+    try {
+        const response = await axios.get(`http://localhost:8130/notificar/${id_usuario}`)
+        return response.data
+    } catch (err) {
+        console.log('Erro ao notificar:', err.message);
+        return null;
+    };
+};
+
+async function usuariosVinculados(id_alarme) {
+    try {
+        const response = await axios.get(`http://localhost:8090/alarmes/permissao/${id_alarme}`)
+        return response.data
+    } catch (err) {
+        console.log('Erro ao procurar permissoes', err.message);
+        return [];
+    };
+};

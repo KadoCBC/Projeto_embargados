@@ -20,7 +20,6 @@ db.run(`CREATE TABLE IF NOT EXISTS alarmes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome_local TEXT NOT NULL,
     status INTEGER,
-    usuarios_ids TEXT,
     pontos_monitorados TEXT
 )`, (err) => {
     if (err) {
@@ -29,23 +28,38 @@ db.run(`CREATE TABLE IF NOT EXISTS alarmes (
     }
 });
 
+// Cria a tabela "permissoes" se não existir
+db.run(`
+    CREATE TABLE IF NOT EXISTS permissoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_alarme INTEGER NOT NULL,
+        id_usuario INTEGER NOT NULL,
+    )
+`, (err) => {
+    if (err) {
+        console.log('ERRO ao criar tabela permissoes.');
+        throw err;
+    } else {
+        console.log('Tabela permissoes criada com sucesso!');
+    }
+});
+
+//CRIA UM ALARME
 app.post('/alarmes', (req, res) => {
-    const { nome_local, status, usuarios_ids, pontos_monitorados } = req.body || {};
+    const { nome_local, status, pontos_monitorados } = req.body || {};
 
     if (!nome_local) {
         return res.status(400).send("O campo 'nome_local' é obrigatório.");
     }
 
     // Trate campos separados por vírgulas
-    const usuariosIdsStr = usuarios_ids || '';
     const pontosStr = pontos_monitorados || '';
 
-    db.run(`INSERT INTO alarmes (nome_local, status, usuarios_ids, pontos_monitorados)
+    db.run(`INSERT INTO alarmes (nome_local, status, pontos_monitorados)
             VALUES (?, ?, ?, ?)`,
         [
             nome_local,
             status,
-            usuariosIdsStr,
             pontosStr
         ],
         function (err) {
@@ -57,6 +71,7 @@ app.post('/alarmes', (req, res) => {
         }
     );
 });
+
 
 // GET - Buscar todos os alarmes
 app.get('/alarmes', (req, res) => {
@@ -86,18 +101,16 @@ app.get('/alarmes/:id', (req, res) => {
 
 // PATCH - Atualizar alarme por ID
 app.patch('/alarmes/:id', (req, res) => {
-    const { nome_local, status, usuarios_ids, pontos_monitorados } = req.body;
+    const { nome_local, status, pontos_monitorados } = req.body;
 
     db.run(`UPDATE alarmes SET
             nome_local = COALESCE(?, nome_local),
             status = COALESCE(?, status),
-            usuarios_ids = COALESCE(?, usuarios_ids),
             pontos_monitorados = COALESCE(?, pontos_monitorados)
             WHERE id = ?`,
         [
             nome_local || null,
             status === undefined ? null : (status ? 1 : 0), //converte booleano para 1 ou 0
-            usuarios_ids ? usuarios_ids.join(',') : null,
             pontos_monitorados ? pontos_monitorados.join(',') : null,
             req.params.id
         ],
@@ -123,25 +136,89 @@ app.delete('/alarmes/:id', (req, res) => {
             res.status(200).send('Alarme removido com sucesso.');
         }
     });
+    db.run('DELETE FROM permissoes WHERE id_alarme = ?', [req.params.id], function (err) {
+        if (err) {
+            res.status(500).send('Erro ao remover alarme.');
+        } else if (this.changes === 0) {
+            res.status(404).send('Alarme não encontrado.');
+        } else {
+            res.status(200).send('Alarme removido com sucesso.');
+        }
+    });
+});
+
+//VINCULA UM USUARIO A UM ALARME
+app.post('/alarmes/permissao/:id', async (req,res) => {
+    const id_alarme = req.params.id;
+    const id_usuario = req.body.id_usuario;
+
+    if (!id_usuario) {
+        return res.status(400).send("id_usuario é obrigatório")
+    };
+    
+    const data = await procura_usuario(id_usuario);
+
+    if (!data.id){
+        return res.status(400).send("Usuario não existe")
+    }
+
+    db.run(`INSERT INTO permissoes (id_alarme, id_usuario)`
+        [
+            id_alarme,
+            id_usuario
+        ],
+        function (err) {
+            if (err) {
+                return res.status(500).send('Erro ao vincular Usuario ao alarme')
+            };
+            res.status(200).send(`Usuario: ${id_usuario} vinculado ao alarme: ${id_alarme}`)
+        }
+    );
+});
+
+//GET permissoes por id_alarme
+app.get('/alarmes/permissao/:id', (req, res) => {
+    const id_alarme = req.params.id;
+
+    db.all('SELECT id_usuario FROM permissoes WHERE id_alarme = ?', [id_alarme], (err, results) => {
+        if (err) {
+            res.status(500).send('Erro ao buscar as permissoes do alarme')
+        } else if (!result) {
+            res.status(404).send('Alarme não encontrado.');
+        } else {
+            res.status(200).json(results);
+        };
+    });
 });
 
 // Permissão de acesso
 app.get('/permissao', (req, res) => {
     const { id_usuario, id_alarme } = req.query;
+
+    if (!id_alarme || !id_usuario) {
+        return res.status(400).json({ mensagem: 'Parâmetros id_alarme e id_usuario são obrigatórios.' });
+    }
+
     db.get('SELECT * FROM alarmes WHERE id = ?', [id_alarme], (err, result) => {
         if (err) {
-            console.log(err);
-            res.status(500).send('Erro ao buscar alarme.');
+            res.status(500).send('Erro ao buscar alarme.')
         } else if (!result) {
             res.status(404).send('Alarme não encontrado.');
         } else {
-            const lista = result.usuarios_ids.split(',').map(id => id.trim()); // gambiarra
-            
-            const permitido = lista.includes(id_usuario.trim());
-            const status = result.status; // Pegando o status da tupla do banco
-
-            return res.json({permitido,status})
+            var status_alarme = result.status; // Pegando o status da tupla do banco
         };
+    });
+
+    db.get('SELECT * FROM permissoes WHERE id_alarme = ? AND id_usuario = ?', [id_alarme, id_usuario], (err, result) => {
+        if (err) {
+            console.log('Erro ao buscar permissão:', err.message);
+            return res.status(500).json({ mensagem: 'Erro interno ao verificar permissão.' });
+        }
+        if (row) {
+            return res.status(200).json({ permitido: true, status: status_alarme, permissao: row });
+        } else {
+            return res.status(200).json({ permitido: false });
+        }
     });
 });
 
@@ -151,3 +228,13 @@ const porta = 8090;
 app.listen(porta, () => {
     console.log('Microserviço de alarmes rodando na porta: ' + porta);
 });
+
+async function procura_usuario(id_usuario) {
+    try {
+        const response = await axios.get(`http://localhost:8080/usuarios/${id_usuario}`)
+        return response.data
+    } catch (err) {
+        console.log('Erro ao encontrar usuario:', err.message);
+        return null;
+    };
+};

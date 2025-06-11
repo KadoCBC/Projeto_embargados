@@ -10,7 +10,14 @@ app.use(bodyParser.urlencoded({extended: true}));
 
 // Aciona Alarme
 app.post('/acionamento', async (req, res) => {
-    const { id_alarme, id_usuario, origem } = req.body; 
+    const { id_alarme, id_usuario, origem = 'desconhecido' } = req.body;
+
+    // Validação de campos obrigatórios
+    if (!id_alarme || !id_usuario) {
+        return res.status(400).json({
+            mensagem: 'Os parâmetros id_alarme e id_usuario são obrigatórios.'
+        });
+    };
 
     try {
         let { permitido, status } = await verificaPermissao(id_alarme, id_usuario);
@@ -23,11 +30,15 @@ app.post('/acionamento', async (req, res) => {
         if (status == 0) {
             status = 1
             await acionamento(id_alarme, status)
+            evento = `Alarme acionado pelo usuario: ${id_usuario}`
+            await registraLog(id_alarme, evento, origem)
             res.status(200).json({ mensagem: 'Alarme acionado com sucesso!' });
         }
         else {
             status = 0
             await acionamento(id_alarme, status)
+            evento = `Alarme desligado pelo usuario: ${id_usuario}`
+            await registraLog(id_alarme, evento, origem)
             res.status(200).json({ mensagem: 'Alarme desligado com sucesso!' });
         };
 
@@ -53,8 +64,8 @@ async function verificaPermissao(id_alarme, id_usuario) {
     } catch (err) {
         console.log('Erro ao buscar alarme:', err.message);
         return null;
-    }
-}
+    };
+};
 
 async function acionamento(id_alarme, novoStatus) {
     try {
@@ -65,5 +76,19 @@ async function acionamento(id_alarme, novoStatus) {
     } catch (err) {
         console.log('Erro ao atualizar stautus:', err.message);
         return null;
-    }
-}
+    };
+};
+
+async function registraLog(id_alarmeLog, eventoLog, localLog) {
+    try {
+        const response = await axios.get(`http://localhost:8120/registros`,{
+            id_alarme: id_alarmeLog, // corpo da requisição
+            evento: eventoLog,
+            local: localLog
+        });
+        return
+    } catch (err) {
+        console.log('Erro ao registrar Log:', err.message);
+        return null;
+    };
+};
